@@ -15,9 +15,11 @@ async function getToken(): Promise<string> {
   return token
 }
 
+const BASE = import.meta.env.VITE_API_URL ?? ''
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getToken()
-  const res = await fetch(path, {
+  const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',

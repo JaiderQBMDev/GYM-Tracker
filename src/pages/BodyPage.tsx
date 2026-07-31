@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Scale, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useBodyMeasurements, useUpsertMeasurement, useProfile } from '../hooks/useApi'
+import type { BodyMeasurement } from '../hooks/useApi'
 
 export function BodyPage() {
   const { data: measurements } = useBodyMeasurements()
@@ -9,142 +10,171 @@ export function BodyPage() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
     weight_kg: '',
-    chest_cm: '',
-    waist_cm: '',
-    bicep_cm: '',
-    thigh_cm: '',
-    notes: '',
+    body_fat_pct: '',
+    muscle_mass_kg: '',
+    visceral_fat_level: '',
   })
 
   const latest = measurements?.[0]
   const prev = measurements?.[1]
-  const weightDiff = latest?.weight_kg && prev?.weight_kg
-    ? (latest.weight_kg - prev.weight_kg).toFixed(1)
-    : null
+
+  const delta = (field: keyof BodyMeasurement) => {
+    const a = latest?.[field] as number | null
+    const b = prev?.[field] as number | null
+    if (a == null || b == null) return null
+    return (a - b).toFixed(1)
+  }
 
   const heightM = profile?.height_cm ? profile.height_cm / 100 : null
   const bmi = latest?.weight_kg && heightM
     ? (latest.weight_kg / (heightM * heightM)).toFixed(1)
     : null
 
-  const chartData = (measurements ?? [])
-    .filter((m) => m.weight_kg != null)
-    .slice(0, 8)
-    .reverse()
-
-  const maxW = Math.max(...chartData.map((d) => d.weight_kg!), 0)
-  const minW = Math.min(...chartData.map((d) => d.weight_kg!), 0)
-  const rangeW = maxW - minW || 1
+  const chartData = (measurements ?? []).slice(0, 8).reverse()
+  const hasChart = chartData.length > 1
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const today = new Date().toISOString().split('T')[0]
     const body: Record<string, unknown> = { recorded_on: today }
     if (form.weight_kg) body.weight_kg = parseFloat(form.weight_kg)
-    if (form.chest_cm) body.chest_cm = parseFloat(form.chest_cm)
-    if (form.waist_cm) body.waist_cm = parseFloat(form.waist_cm)
-    if (form.bicep_cm) body.bicep_cm = parseFloat(form.bicep_cm)
-    if (form.thigh_cm) body.thigh_cm = parseFloat(form.thigh_cm)
-    if (form.notes) body.notes = form.notes
+    if (form.body_fat_pct) body.body_fat_pct = parseFloat(form.body_fat_pct)
+    if (form.muscle_mass_kg) body.muscle_mass_kg = parseFloat(form.muscle_mass_kg)
+    if (form.visceral_fat_level) body.visceral_fat_level = parseInt(form.visceral_fat_level)
     await upsert.mutateAsync(body as any)
     setShowForm(false)
-    setForm({ weight_kg: '', chest_cm: '', waist_cm: '', bicep_cm: '', thigh_cm: '', notes: '' })
+    setForm({ weight_kg: '', body_fat_pct: '', muscle_mass_kg: '', visceral_fat_level: '' })
   }
+
+  const weightDelta = delta('weight_kg')
+  const mmeDelta = delta('muscle_mass_kg')
+  const pgcDelta = delta('body_fat_pct')
 
   return (
     <div className="flex-1">
       {/* Header */}
       <div className="flex justify-between items-center px-6 pt-4 pb-3">
-        <h1 className="text-2xl font-bold">Cuerpo</h1>
+        <h1 className="text-[26px] font-bold tracking-wide">Cuerpo</h1>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-accent text-bg font-bold text-sm px-4 py-2 rounded-lg flex items-center gap-1"
+          className="bg-accent text-bg font-bold text-[13px] px-3.5 py-2 flex items-center gap-1"
         >
           <Plus size={14} />
           Registrar
         </button>
       </div>
 
-      {/* Weight hero */}
-      {latest?.weight_kg && (
-        <div className="mx-5 bg-surface rounded-2xl p-5 border border-accent-border relative overflow-hidden">
-          <div className="absolute -top-5 -right-5 w-27.5 h-27.5 bg-[radial-gradient(circle,rgba(198,241,53,0.15)_0%,transparent_70%)] pointer-events-none" />
-          <div className="flex items-center gap-2 mb-1">
-            <Scale size={14} className="text-accent" />
-            <span className="text-[11px] text-text-secondary font-medium">Peso actual</span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-bold">{latest.weight_kg}</span>
-            <span className="text-lg text-text-secondary">kg</span>
-          </div>
-          {weightDiff && (
-            <p className={`text-sm font-semibold mt-1 ${parseFloat(weightDiff) <= 0 ? 'text-green' : 'text-orange'}`}>
-              {parseFloat(weightDiff) > 0 ? '+' : ''}{weightDiff} kg
-              <span className="text-text-secondary font-normal"> este mes</span>
-            </p>
-          )}
-          <p className="text-[11px] text-text-secondary mt-1">
-            Últ. registro: {new Date(latest.recorded_on).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-            {bmi && ` · IMC: ${bmi}`}
-          </p>
-        </div>
-      )}
-
-      {/* Weight chart */}
-      {chartData.length > 1 && (
-        <div className="mx-5 mt-4 bg-surface rounded-xl p-4 border border-border">
-          <p className="text-[11px] text-text-secondary font-medium mb-3">
-            Peso corporal · últimas {chartData.length} semanas
-          </p>
-          <div className="h-30 relative">
-            <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-[10px] text-text-secondary w-8">
-              <span>{Math.round(maxW)}</span>
-              <span>{Math.round(minW)}</span>
-            </div>
-            <svg className="ml-10 w-[calc(100%-40px)] h-full" viewBox={`0 0 ${chartData.length * 40} 120`} preserveAspectRatio="none">
-              <polyline
-                points={chartData.map((d, i) => `${i * 40 + 20},${120 - ((d.weight_kg! - minW) / rangeW) * 100}`).join(' ')}
-                fill="none"
-                stroke="#c6f135"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              {chartData.map((d, i) => (
-                <circle
-                  key={i}
-                  cx={i * 40 + 20}
-                  cy={120 - ((d.weight_kg! - minW) / rangeW) * 100}
-                  r="3"
-                  fill="#c6f135"
-                />
-              ))}
-            </svg>
-          </div>
-        </div>
-      )}
-
-      {/* Body measurements */}
+      {/* Current stats — 3-column grid */}
       {latest && (
-        <div className="mx-5 mt-4 bg-surface rounded-xl p-4 border border-border">
-          <p className="text-[11px] text-text-secondary font-semibold uppercase tracking-wider mb-3">
-            Medidas
+        <div className="mx-5 bg-surface rounded-xl p-4 border border-border">
+          {measurements && measurements.length <= 1 ? (
+            <span className="text-[11px] text-text-secondary font-medium uppercase tracking-[0.08em] block mb-3">
+              Tu punto de partida · {new Date(latest.recorded_on).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).toUpperCase()}
+            </span>
+          ) : null}
+          <div className="grid grid-cols-3 gap-3">
+            <StatCell
+              label="Peso"
+              value={latest.weight_kg}
+              unit="kg"
+              delta={weightDelta}
+            />
+            <StatCell
+              label="MME"
+              value={latest.muscle_mass_kg}
+              unit="kg"
+              delta={mmeDelta}
+              deltaInverted
+            />
+            <StatCell
+              label="PGC"
+              value={latest.body_fat_pct}
+              unit="%"
+              delta={pgcDelta}
+            />
+          </div>
+          <p className="text-[11px] text-text-secondary mt-3">
+            {measurements && measurements.length <= 1
+              ? `Datos de tu onboarding${bmi ? ` · IMC ${bmi}` : ''}${latest.visceral_fat_level ? ` · grasa visceral ${latest.visceral_fat_level}` : ''}`
+              : `Últ. registro: ${new Date(latest.recorded_on).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}${bmi ? ` · IMC: ${bmi}` : ''}${latest.visceral_fat_level ? ` · Grasa visceral: ${latest.visceral_fat_level}` : ''}`
+            }
           </p>
-          <div className="grid grid-cols-2 gap-3">
-            {latest.chest_cm && <MeasureCard label="Pecho" value={latest.chest_cm} unit="cm" />}
-            {latest.waist_cm && <MeasureCard label="Cintura" value={latest.waist_cm} unit="cm" />}
-            {latest.bicep_cm && <MeasureCard label="Bícep" value={latest.bicep_cm} unit="cm" />}
-            {latest.thigh_cm && <MeasureCard label="Muslo" value={latest.thigh_cm} unit="cm" />}
+        </div>
+      )}
+
+      {/* Evolution chart or single-point placeholder */}
+      {hasChart ? (
+        <div className="mx-5 mt-4 bg-surface rounded-xl p-4 border border-border">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] text-text-secondary font-medium uppercase tracking-[0.08em]">
+              Evolución
+            </span>
+            <div className="flex gap-4">
+              <Legend color="bg-accent" label="Peso" />
+              <Legend color="bg-green" label="MME" />
+              <Legend color="bg-text-secondary" label="PGC" dashed />
+            </div>
+          </div>
+          <EvolutionChart data={chartData} />
+        </div>
+      ) : latest ? (
+        <div className="mx-5 mt-4 bg-surface rounded-xl p-4 border border-border text-center">
+          {/* Single dot with dashed line placeholder */}
+          <svg width="240" height="60" viewBox="0 0 240 60" className="mx-auto mb-3">
+            <circle cx="30" cy="30" r="5" fill="#5b8fff" />
+            <line x1="35" y1="30" x2="220" y2="30" stroke="currentColor" strokeWidth="1" strokeDasharray="4 3" className="text-text-secondary opacity-30" />
+          </svg>
+          <h3 className="text-[15px] font-bold mb-1">Un punto todavía no es una línea</h3>
+          <p className="text-text-secondary text-[12px] max-w-[280px] mx-auto">
+            Registra tu próximo InBody o pésate en 2 semanas y aquí aparecerá tu evolución de peso, MME y PGC.
+          </p>
+        </div>
+      ) : null}
+
+      {/* Measurements table */}
+      {measurements && measurements.length > 0 && (
+        <div className="mx-5 mt-4">
+          <span className="text-[11px] text-text-secondary font-medium uppercase tracking-[0.08em] block mb-2 px-1">
+            Mediciones
+          </span>
+          <div className="bg-surface rounded-xl p-4 border border-border overflow-x-auto">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="text-[11px] uppercase tracking-[0.08em] text-text-secondary">
+                  <th className="text-left pb-2 font-medium">Fecha</th>
+                  <th className="text-right pb-2 font-medium">Peso</th>
+                  <th className="text-right pb-2 font-medium">MME</th>
+                  <th className="text-right pb-2 font-medium">PGC</th>
+                </tr>
+              </thead>
+              <tbody>
+                {measurements.slice(0, 10).map((m, i) => (
+                  <tr key={m.id} className="border-t border-border/50">
+                    <td className="py-2 text-text-secondary">
+                      {new Date(m.recorded_on).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                      {i === 0 && measurements.length <= 1 && (
+                        <span className="ml-2 text-[11px] px-2 py-0.5 bg-accent-dim text-accent font-medium">
+                          Inicio
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 text-right font-medium">{m.weight_kg ?? '—'}</td>
+                    <td className="py-2 text-right font-medium">{m.muscle_mass_kg ?? '—'}</td>
+                    <td className="py-2 text-right font-medium">{m.body_fat_pct ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
       {/* Register form modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end">
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-end justify-center">
           <form
             onSubmit={handleSubmit}
-            className="w-full bg-surface rounded-t-2xl p-6 flex flex-col gap-3 max-h-[80vh] overflow-y-auto"
+            className="w-full bg-surface rounded-t-2xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] flex flex-col gap-3 max-h-[85vh] overflow-y-auto"
           >
             <div className="flex justify-between items-center mb-2">
               <h2 className="text-lg font-bold">Nuevo registro</h2>
@@ -153,10 +183,9 @@ export function BodyPage() {
               </button>
             </div>
             <Field label="Peso (kg)" value={form.weight_kg} onChange={(v) => setForm({ ...form, weight_kg: v })} />
-            <Field label="Pecho (cm)" value={form.chest_cm} onChange={(v) => setForm({ ...form, chest_cm: v })} />
-            <Field label="Cintura (cm)" value={form.waist_cm} onChange={(v) => setForm({ ...form, waist_cm: v })} />
-            <Field label="Bícep (cm)" value={form.bicep_cm} onChange={(v) => setForm({ ...form, bicep_cm: v })} />
-            <Field label="Muslo (cm)" value={form.thigh_cm} onChange={(v) => setForm({ ...form, thigh_cm: v })} />
+            <Field label="PGC — Grasa corporal (%)" value={form.body_fat_pct} onChange={(v) => setForm({ ...form, body_fat_pct: v })} />
+            <Field label="MME — Masa muscular (kg)" value={form.muscle_mass_kg} onChange={(v) => setForm({ ...form, muscle_mass_kg: v })} />
+            <Field label="Grasa visceral (nivel 1-20)" value={form.visceral_fat_level} onChange={(v) => setForm({ ...form, visceral_fat_level: v })} />
             <button
               type="submit"
               disabled={upsert.isPending}
@@ -173,14 +202,108 @@ export function BodyPage() {
   )
 }
 
-function MeasureCard({ label, value, unit }: { label: string; value: number; unit: string }) {
+function StatCell({
+  label,
+  value,
+  unit,
+  delta,
+  deltaInverted,
+}: {
+  label: string
+  value: number | null
+  unit: string
+  delta: string | null
+  deltaInverted?: boolean
+}) {
+  const isPositive = delta ? parseFloat(delta) > 0 : false
+  const showGreen = deltaInverted ? isPositive : !isPositive
   return (
-    <div className="bg-surface-alt rounded-lg p-3">
-      <p className="text-[11px] text-text-secondary mb-0.5">{label}</p>
-      <p className="text-lg font-bold">
-        {value} <span className="text-sm text-text-secondary font-normal">{unit}</span>
-      </p>
+    <div>
+      <span className="text-[11px] uppercase tracking-[0.06em] text-text-secondary block mb-1">
+        {label}
+      </span>
+      <span className="text-[22px] font-bold">
+        {value ?? '—'}
+      </span>
+      {value != null && (
+        <span className="text-[12px] text-text-secondary ml-1">{unit}</span>
+      )}
+      {delta && parseFloat(delta) !== 0 && (
+        <span className={`text-[11px] block font-medium ${showGreen ? 'text-green' : 'text-orange'}`}>
+          {parseFloat(delta) > 0 ? '+' : ''}{delta} {unit}
+        </span>
+      )}
     </div>
+  )
+}
+
+function Legend({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className={`w-3 h-[2px] ${color} ${dashed ? 'opacity-50' : ''}`}
+        style={dashed ? { background: 'repeating-linear-gradient(to right, currentColor 0, currentColor 3px, transparent 3px, transparent 6px)' } : undefined}
+      />
+      <span className="text-[10px] text-text-secondary">{label}</span>
+    </div>
+  )
+}
+
+function EvolutionChart({ data }: { data: BodyMeasurement[] }) {
+  const w = 300
+  const h = 120
+  const pad = { top: 10, right: 10, bottom: 5, left: 10 }
+  const cw = w - pad.left - pad.right
+  const ch = h - pad.top - pad.bottom
+
+  const weights = data.map((d) => d.weight_kg).filter((v): v is number => v != null)
+  const mmes = data.map((d) => d.muscle_mass_kg).filter((v): v is number => v != null)
+  const pgcs = data.map((d) => d.body_fat_pct).filter((v): v is number => v != null)
+
+  const allValues = [...weights, ...mmes, ...pgcs]
+  if (allValues.length < 2) return null
+
+  const minV = Math.min(...allValues) * 0.95
+  const maxV = Math.max(...allValues) * 1.05
+  const range = maxV - minV || 1
+
+  const x = (i: number) => pad.left + (i / (data.length - 1)) * cw
+  const y = (v: number) => pad.top + ch - ((v - minV) / range) * ch
+
+  const makeLine = (values: (number | null)[]) => {
+    const points: string[] = []
+    values.forEach((v, i) => {
+      if (v != null) points.push(`${x(i)},${y(v)}`)
+    })
+    return points.join(' ')
+  }
+
+  return (
+    <svg className="w-full" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+      {weights.length > 1 && (
+        <>
+          <polyline points={makeLine(data.map((d) => d.weight_kg))} fill="none" stroke="#c6f135" strokeWidth="2" />
+          {data.map((d, i) => d.weight_kg != null && (
+            <circle key={`w${i}`} cx={x(i)} cy={y(d.weight_kg)} r="3" fill="#c6f135" />
+          ))}
+        </>
+      )}
+      {mmes.length > 1 && (
+        <>
+          <polyline points={makeLine(data.map((d) => d.muscle_mass_kg))} fill="none" stroke="#34d399" strokeWidth="2" />
+          {data.map((d, i) => d.muscle_mass_kg != null && (
+            <circle key={`m${i}`} cx={x(i)} cy={y(d.muscle_mass_kg)} r="3" fill="#34d399" />
+          ))}
+        </>
+      )}
+      {pgcs.length > 1 && (
+        <>
+          <polyline points={makeLine(data.map((d) => d.body_fat_pct))} fill="none" stroke="#7a7f9a" strokeWidth="2" strokeDasharray="4 3" />
+          {data.map((d, i) => d.body_fat_pct != null && (
+            <circle key={`p${i}`} cx={x(i)} cy={y(d.body_fat_pct)} r="3" fill="#7a7f9a" />
+          ))}
+        </>
+      )}
+    </svg>
   )
 }
 

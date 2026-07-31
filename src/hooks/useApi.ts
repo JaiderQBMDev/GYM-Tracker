@@ -12,9 +12,11 @@ export function useProfile() {
 export function useUpdateProfile() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { full_name?: string; height_cm?: number; weight_unit?: string }) =>
+    mutationFn: (body: Partial<Pick<Profile, 'full_name' | 'avatar_url' | 'height_cm' | 'weight_unit' | 'sex' | 'birth_year' | 'training_days_per_week' | 'fitness_goal' | 'experience_level' | 'routine_preference' | 'onboarding_completed'>>) =>
       api.patch<Profile>('/api/profile', body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['profile'] }),
+    onSuccess: (data) => {
+      qc.setQueryData(['profile'], data)
+    },
   })
 }
 
@@ -39,6 +41,35 @@ export function useRoutineDetail(id: string) {
     queryKey: ['routine', id],
     queryFn: () => api.get<RoutineDetail>(`/api/routines/${id}`),
     enabled: !!id,
+  })
+}
+
+export function useCreateRoutineWithExercises() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: {
+      name: string
+      is_favorite?: boolean
+      assigned_day?: number | null
+      exercises: {
+        exercise_id: string
+        order_index: number
+        target_sets: number
+        target_reps_min: number
+        target_reps_max: number
+        rest_seconds: number
+      }[]
+    }) => api.post<{ id: string }>('/api/routines/with-exercises', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['routines'] }),
+  })
+}
+
+export function useAddRoutineExercise() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ routineId, ...body }: { routineId: string; exercise_id: string; order_index: number; target_sets?: number; target_reps_min?: number; target_reps_max?: number; rest_seconds?: number }) =>
+      api.post(`/api/routines/${routineId}/exercises`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['routines'] }),
   })
 }
 
@@ -98,11 +129,39 @@ export function useUpdateSet() {
 }
 
 // --- Progress ---
+export function useWeeklyVolume() {
+  return useQuery({
+    queryKey: ['weekly-volume'],
+    queryFn: () => api.get<WeeklyVolume[]>('/api/stats/weekly-volume'),
+  })
+}
+
+export function useTrainedExercises() {
+  return useQuery({
+    queryKey: ['trained-exercises'],
+    queryFn: () => api.get<TrainedExercise[]>('/api/stats/trained-exercises'),
+  })
+}
+
 export function useExerciseProgress(exerciseId: string, period = '3m') {
   return useQuery({
     queryKey: ['progress', exerciseId, period],
     queryFn: () => api.get<ExerciseProgress>(`/api/stats/exercises/${exerciseId}/progress?period=${period}`),
     enabled: !!exerciseId,
+  })
+}
+
+export function useLogPastSession() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: LogPastSessionInput) =>
+      api.post<{ id: string; sets_count: number }>('/api/sessions/log-past', body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sessions'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      qc.invalidateQueries({ queryKey: ['weekly-volume'] })
+      qc.invalidateQueries({ queryKey: ['trained-exercises'] })
+    },
   })
 }
 
@@ -171,9 +230,20 @@ export interface Profile {
   avatar_url: string | null
   height_cm: number | null
   weight_unit: string
+  sex: 'male' | 'female' | null
+  birth_year: number | null
+  training_days_per_week: number | null
+  fitness_goal: FitnessGoal | null
+  experience_level: ExperienceLevel | null
+  routine_preference: RoutinePreference | null
+  onboarding_completed: boolean
   is_admin: boolean
   created_at: string
 }
+
+export type FitnessGoal = 'lose_fat' | 'gain_muscle' | 'improve_fitness' | 'increase_strength' | 'stay_healthy' | 'other'
+export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced'
+export type RoutinePreference = 'create_own' | 'receive_recommended'
 
 export interface Exercise {
   id: string
@@ -193,6 +263,8 @@ export interface DashboardData {
     total_volume_kg: number
   }
   training_days: boolean[]
+  is_rest_day: boolean
+  upcoming_routine: { name: string; day_label: string } | null
   next_routine: { id: string; name: string; exercise_count: number } | null
   last_session: {
     id: string
@@ -210,6 +282,7 @@ export interface Routine {
   name: string
   is_favorite: boolean
   position: number
+  assigned_day: number | null
   exercise_count: number
   last_completed: string | null
 }
@@ -292,28 +365,61 @@ export interface UpdateSetInput {
   is_completed?: boolean
 }
 
+export interface WeeklyVolume {
+  week: string
+  volume_kg: number
+}
+
+export interface TrainedExercise {
+  exercise_id: string
+  name: string
+  muscle_group: string
+  best_weight_kg: number
+  total_sets: number
+  last_performed: string
+}
+
 export interface ExerciseProgress {
+  exercise_name: string | null
+  muscle_group: string | null
   personal_record: { weight_kg: number; date: string } | null
-  chart_data: { date: string; weight_kg: number; reps: number }[]
+  volume_this_month: number
+  volume_change_pct: number | null
+  chart_data: { date: string; weight_kg: number }[]
+  recent_sessions: {
+    session_id: string
+    date: string
+    sets: { reps: number; weight_kg: number; is_pr: boolean }[]
+    has_pr: boolean
+    total_volume: number
+  }[]
 }
 
 export interface BodyMeasurement {
   id: string
   recorded_on: string
   weight_kg: number | null
-  chest_cm: number | null
-  waist_cm: number | null
-  bicep_cm: number | null
-  thigh_cm: number | null
+  body_fat_pct: number | null
+  muscle_mass_kg: number | null
+  visceral_fat_level: number | null
   notes: string | null
 }
 
 export interface UpsertMeasurementInput {
   recorded_on: string
   weight_kg?: number
-  chest_cm?: number
-  waist_cm?: number
-  bicep_cm?: number
-  thigh_cm?: number
+  body_fat_pct?: number
+  muscle_mass_kg?: number
+  visceral_fat_level?: number
   notes?: string
+}
+
+export interface LogPastSessionInput {
+  routine_name: string
+  date: string
+  duration_minutes?: number
+  exercises: {
+    exercise_id: string
+    sets: { reps: number; weight_kg: number }[]
+  }[]
 }

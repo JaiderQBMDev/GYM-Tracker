@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router'
-import { ChevronLeft, Play, Clock } from 'lucide-react'
+import { ChevronLeft, Play } from 'lucide-react'
 import { useRoutineDetail, useStartSession } from '../hooks/useApi'
 import { useSessionStore } from '../stores/session'
 
@@ -34,6 +34,14 @@ export function RoutineDetailPage() {
   if (!routine) return null
 
   const exercises = routine.routine_exercises ?? []
+  const sorted = [...exercises].sort((a, b) => a.order_index - b.order_index)
+
+  const muscleGroups = [...new Set(sorted.map((re) => re.exercises.muscle_group))]
+  const estMinutes = sorted.reduce((acc, re) => {
+    const setTime = re.target_sets * 0.75
+    const restTime = (re.target_sets - 1) * (re.rest_seconds / 60)
+    return acc + setTime + restTime
+  }, 0)
 
   return (
     <div className="flex-1">
@@ -47,9 +55,9 @@ export function RoutineDetailPage() {
 
       {/* Title + meta */}
       <div className="px-6 pb-4">
-        <h1 className="text-2xl font-bold">{routine.name}</h1>
+        <h1 className="text-[26px] font-bold tracking-wide">{routine.name}</h1>
         <p className="text-[13px] text-text-secondary mt-1">
-          {exercises.length} ejercicios · ~{exercises.length * 9} min estimados
+          {exercises.length} ejercicios · ~{Math.round(estMinutes)} min · {muscleGroups.join(', ')}
         </p>
       </div>
 
@@ -63,42 +71,43 @@ export function RoutineDetailPage() {
           <Play size={16} fill="currentColor" />
           {startSession.isPending ? 'Iniciando...' : 'Iniciar sesión'}
         </button>
-        <div className="flex items-center justify-center gap-1.5 mt-2">
-          <Clock size={12} className="text-text-secondary" />
-          <span className="text-[11px] text-text-secondary">
-            ~{exercises.length * 9} min estimados
-          </span>
-        </div>
       </div>
 
-      {/* Exercise list */}
-      <p className="px-6 text-[11px] text-text-secondary font-semibold uppercase tracking-wider mb-2">
-        Ejercicios
-      </p>
-      <div className="flex flex-col gap-2 px-5 pb-6">
-        {exercises
-          .sort((a, b) => a.order_index - b.order_index)
-          .map((re, i) => (
-            <div
-              key={re.id}
-              className="bg-surface rounded-xl p-4 border border-border flex items-center gap-3"
-            >
-              <div className="w-11 h-11 rounded-lg bg-surface-alt flex-shrink-0 overflow-hidden flex items-center justify-center">
-                {re.exercises.image_url ? (
-                  <img src={re.exercises.image_url} alt={re.exercises.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xs font-bold text-text-secondary">{i + 1}</span>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-[14px] truncate">{re.exercises.name}</p>
-                <p className="text-[12px] text-text-secondary capitalize">
-                  {re.exercises.muscle_group} · {re.target_sets} × {re.target_reps_min}–{re.target_reps_max} reps
-                </p>
-              </div>
-            </div>
-          ))}
+      {/* Exercise table */}
+      <div className="mx-5 bg-surface rounded-xl border border-border overflow-hidden">
+        <div className="px-4 py-3 border-b border-border">
+          <span className="text-[11px] text-text-secondary font-semibold uppercase tracking-[0.08em]">
+            Ejercicios
+          </span>
+        </div>
+        <table className="w-full text-[13px]">
+          <thead>
+            <tr className="text-[11px] uppercase tracking-[0.06em] text-text-secondary border-b border-border/50">
+              <th className="text-left px-4 py-2 font-medium w-8">#</th>
+              <th className="text-left py-2 font-medium">Ejercicio</th>
+              <th className="text-right px-4 py-2 font-medium">Series × Reps</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((re, i) => (
+              <tr key={re.id} className="border-t border-border/30">
+                <td className="px-4 py-3 text-text-secondary font-medium">{i + 1}</td>
+                <td className="py-3">
+                  <p className="font-semibold truncate">{re.exercises.name}</p>
+                  <p className="text-[11px] text-text-secondary capitalize">
+                    {re.exercises.muscle_group} · descanso {re.rest_seconds} s
+                  </p>
+                </td>
+                <td className="px-4 py-3 text-right font-medium whitespace-nowrap">
+                  {re.target_sets} × {re.target_reps_min}–{re.target_reps_max}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+
+      <div className="h-6" />
     </div>
   )
 }

@@ -185,10 +185,10 @@ export function AdminExercisesPage() {
 
       {/* Create/Edit form modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end">
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-end">
           <form
             onSubmit={handleSubmit}
-            className="w-full bg-surface rounded-t-2xl p-6 flex flex-col gap-3 max-h-[85vh] overflow-y-auto"
+            className="w-full bg-surface rounded-t-2xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] flex flex-col gap-3 max-h-[85vh] overflow-y-auto"
           >
             <div className="flex justify-between items-center mb-2">
               <h2 className="text-lg font-bold">{editing ? 'Editar ejercicio' : 'Nuevo ejercicio'}</h2>

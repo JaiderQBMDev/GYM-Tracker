@@ -185,8 +185,16 @@ export function LoginPage() {
             placeholder="Correo electrónico"
             value={email}
             onChange={(e) => setEmail(sanitizeEmailInput(e.target.value))}
+            onKeyDown={(e) => {
+              if (e.key === ' ') e.preventDefault()
+            }}
             onBeforeInput={(e) => {
               if ((e.nativeEvent as InputEvent).data === ' ') e.preventDefault()
+            }}
+            onPaste={(e) => {
+              e.preventDefault()
+              const pasted = e.clipboardData.getData('text')
+              setEmail((v) => sanitizeEmailInput(v + pasted))
             }}
             onBlur={() => { setEmail((v) => v.trim()); markTouched('email') }}
             autoCorrect="off"

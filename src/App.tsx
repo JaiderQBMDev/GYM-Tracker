@@ -7,12 +7,15 @@ import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { RoutinesPage } from './pages/RoutinesPage'
 import { RoutineDetailPage } from './pages/RoutineDetailPage'
+import { CreateRoutinePage } from './pages/CreateRoutinePage'
+import { AddExercisePage } from './pages/AddExercisePage'
 import { ActiveSessionPage } from './pages/ActiveSessionPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { ProgressPage } from './pages/ProgressPage'
 import { BodyPage } from './pages/BodyPage'
 import { AdminExercisesPage } from './pages/admin/AdminExercisesPage'
 import { OnboardingPage } from './pages/OnboardingPage'
+import { LogPastSessionPage } from './pages/LogPastSessionPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,10 +39,13 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="routines" element={<RoutinesPage />} />
+            <Route path="routines/new" element={<CreateRoutinePage />} />
+            <Route path="routines/new/exercises" element={<AddExercisePage />} />
             <Route path="routines/:id" element={<RoutineDetailPage />} />
             <Route path="session" element={<ActiveSessionPage />} />
             <Route path="session/:id" element={<ActiveSessionPage />} />
             <Route path="history" element={<HistoryPage />} />
+            <Route path="log-past" element={<LogPastSessionPage />} />
             <Route path="progress/:exerciseId" element={<ProgressPage />} />
             <Route path="body" element={<BodyPage />} />
             <Route path="admin/exercises" element={<AdminExercisesPage />} />

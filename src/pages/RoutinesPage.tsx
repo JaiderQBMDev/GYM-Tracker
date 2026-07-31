@@ -1,22 +1,31 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Search, Star, ChevronRight } from 'lucide-react'
-import { useRoutines } from '../hooks/useApi'
+import { Search, Star, ChevronRight, Plus } from 'lucide-react'
+import { useRoutines, useDashboard } from '../hooks/useApi'
 
 export function RoutinesPage() {
   const navigate = useNavigate()
   const { data: routines, isLoading } = useRoutines()
+  const { data: dashboard } = useDashboard()
   const [search, setSearch] = useState('')
 
   const filtered = routines?.filter((r) =>
     r.name.toLowerCase().includes(search.toLowerCase()),
   )
 
+  const nextRoutineId = dashboard?.next_routine?.id
+
   return (
     <div className="flex-1">
       {/* Header */}
-      <div className="px-6 pt-4 pb-3">
-        <h1 className="text-2xl font-bold">Mis Rutinas</h1>
+      <div className="flex justify-between items-center px-6 pt-4 pb-3">
+        <h1 className="text-[26px] font-bold tracking-wide">Mis Rutinas</h1>
+        <button
+          onClick={() => navigate('/routines/new')}
+          className="w-[38px] h-[38px] bg-surface border border-border flex items-center justify-center"
+        >
+          <Plus size={18} className="text-text" />
+        </button>
       </div>
 
       {/* Search */}
@@ -44,33 +53,44 @@ export function RoutinesPage() {
         </div>
       ) : filtered && filtered.length > 0 ? (
         <div className="flex flex-col gap-2 px-5">
-          {filtered.map((routine) => (
-            <button
-              key={routine.id}
-              onClick={() => navigate(`/routines/${routine.id}`)}
-              className="w-full bg-surface rounded-2xl p-4 border border-border text-left flex items-center gap-3 active:scale-[0.98] transition-transform"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-bold text-[15px] truncate">{routine.name}</p>
-                  {routine.is_favorite && (
-                    <Star size={13} className="text-accent fill-accent flex-shrink-0" />
-                  )}
-                </div>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-[12px] text-text-secondary">
-                    {routine.exercise_count} ejercicios
-                  </span>
-                  {routine.last_completed && (
+          {filtered.map((routine) => {
+            const isNext = routine.id === nextRoutineId
+            return (
+              <button
+                key={routine.id}
+                onClick={() => navigate(`/routines/${routine.id}`)}
+                className={`w-full bg-surface rounded-2xl p-4 border text-left flex items-center gap-3 active:scale-[0.98] transition-transform ${
+                  isNext ? 'border-accent-border' : 'border-border'
+                }`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-[15px] truncate">{routine.name}</p>
+                    {routine.is_favorite && (
+                      <Star size={13} className="text-accent fill-accent flex-shrink-0" />
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 mt-1">
                     <span className="text-[12px] text-text-secondary">
-                      Últ: {formatDate(routine.last_completed)}
+                      {routine.exercise_count} ejercicios
                     </span>
-                  )}
+                    {routine.last_completed && (
+                      <span className="text-[12px] text-text-secondary">
+                        Últ: {formatDate(routine.last_completed)}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <ChevronRight size={18} className="text-text-secondary flex-shrink-0" />
-            </button>
-          ))}
+                {isNext ? (
+                  <span className="text-[11px] px-2 py-0.5 bg-accent-dim text-accent font-semibold flex-shrink-0">
+                    Hoy
+                  </span>
+                ) : (
+                  <ChevronRight size={18} className="text-text-secondary flex-shrink-0" />
+                )}
+              </button>
+            )
+          })}
         </div>
       ) : (
         <div className="px-5 py-10 text-center">
