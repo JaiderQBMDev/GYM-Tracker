@@ -19,7 +19,8 @@ import { LogPastSessionPage } from './pages/LogPastSessionPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, staleTime: 30_000 },
+    queries: { retry: false, staleTime: 30_000, refetchOnWindowFocus: false },
+    mutations: { retry: false },
   },
 })
 

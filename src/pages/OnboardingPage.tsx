@@ -297,13 +297,17 @@ export function OnboardingPage() {
 
   const handleAddExercise = (exercise: Exercise) => {
     if (selectedExercises.some((e) => e.exercise.id === exercise.id)) return
-    setSelectedExercises((prev) => [...prev, {
-      exercise,
-      target_sets: 3,
-      target_reps_min: 8,
-      target_reps_max: 12,
-      rest_seconds: 90,
-    }])
+    setSelectedExercises((prev) => {
+      const next = [...prev, {
+        exercise,
+        target_sets: 3,
+        target_reps_min: 8,
+        target_reps_max: 12,
+        rest_seconds: 90,
+      }]
+      setEditingExerciseIndex(next.length - 1)
+      return next
+    })
     setShowExercisePicker(false)
     setExerciseSearch('')
   }
@@ -312,8 +316,40 @@ export function OnboardingPage() {
     setSelectedExercises((prev) => prev.map((e, i) => i === index ? { ...e, [field]: value } : e))
   }
 
+  const handleExerciseInputChange = (index: number, field: keyof SelectedExercise, rawValue: string) => {
+    const parsed = parseInt(rawValue)
+    if (rawValue === '' || isNaN(parsed)) {
+      handleUpdateExerciseConfig(index, field, 0)
+    } else {
+      handleUpdateExerciseConfig(index, field, parsed)
+    }
+  }
+
+  const handleExerciseInputBlur = (index: number, field: keyof SelectedExercise, min: number) => {
+    setSelectedExercises((prev) => prev.map((e, i) => {
+      if (i !== index) return e
+      const val = e[field] as number
+      return { ...e, [field]: val < min ? min : val }
+    }))
+  }
+
   const handleSaveRoutine = async () => {
     if (selectedExercises.length === 0 || !routineName.trim()) return
+
+    const invalid = selectedExercises.find((e) =>
+      e.target_sets < 1 || e.target_reps_min < 1 || e.target_reps_max < 1 || e.target_reps_min > e.target_reps_max
+    )
+    if (invalid) {
+      const idx = selectedExercises.indexOf(invalid)
+      setEditingExerciseIndex(idx)
+      if (invalid.target_reps_min > invalid.target_reps_max) {
+        setError(`"${invalid.exercise.name}": el mínimo de reps no puede ser mayor al máximo`)
+      } else {
+        setError(`"${invalid.exercise.name}": las series y repeticiones deben ser al menos 1`)
+      }
+      return
+    }
+
     setSavingRoutine(true)
     setError('')
     try {
@@ -468,8 +504,9 @@ export function OnboardingPage() {
                           <label className="text-[10px] text-text-secondary block mb-1">Series</label>
                           <input
                             type="number"
-                            value={sel.target_sets}
-                            onChange={(e) => handleUpdateExerciseConfig(i, 'target_sets', Math.max(1, parseInt(e.target.value) || 1))}
+                            value={sel.target_sets || ''}
+                            onChange={(e) => handleExerciseInputChange(i, 'target_sets', e.target.value)}
+                            onBlur={() => handleExerciseInputBlur(i, 'target_sets', 1)}
                             className="w-full bg-surface-alt border border-border rounded px-2 py-1.5 text-[13px] text-text text-center focus:outline-none focus:border-accent"
                           />
                         </div>
@@ -477,8 +514,9 @@ export function OnboardingPage() {
                           <label className="text-[10px] text-text-secondary block mb-1">Reps mín</label>
                           <input
                             type="number"
-                            value={sel.target_reps_min}
-                            onChange={(e) => handleUpdateExerciseConfig(i, 'target_reps_min', Math.max(1, parseInt(e.target.value) || 1))}
+                            value={sel.target_reps_min || ''}
+                            onChange={(e) => handleExerciseInputChange(i, 'target_reps_min', e.target.value)}
+                            onBlur={() => handleExerciseInputBlur(i, 'target_reps_min', 1)}
                             className="w-full bg-surface-alt border border-border rounded px-2 py-1.5 text-[13px] text-text text-center focus:outline-none focus:border-accent"
                           />
                         </div>
@@ -486,8 +524,9 @@ export function OnboardingPage() {
                           <label className="text-[10px] text-text-secondary block mb-1">Reps máx</label>
                           <input
                             type="number"
-                            value={sel.target_reps_max}
-                            onChange={(e) => handleUpdateExerciseConfig(i, 'target_reps_max', Math.max(1, parseInt(e.target.value) || 1))}
+                            value={sel.target_reps_max || ''}
+                            onChange={(e) => handleExerciseInputChange(i, 'target_reps_max', e.target.value)}
+                            onBlur={() => handleExerciseInputBlur(i, 'target_reps_max', 1)}
                             className="w-full bg-surface-alt border border-border rounded px-2 py-1.5 text-[13px] text-text text-center focus:outline-none focus:border-accent"
                           />
                         </div>
@@ -495,8 +534,9 @@ export function OnboardingPage() {
                           <label className="text-[10px] text-text-secondary block mb-1">Descanso</label>
                           <input
                             type="number"
-                            value={sel.rest_seconds}
-                            onChange={(e) => handleUpdateExerciseConfig(i, 'rest_seconds', Math.max(0, parseInt(e.target.value) || 0))}
+                            value={sel.rest_seconds || ''}
+                            onChange={(e) => handleExerciseInputChange(i, 'rest_seconds', e.target.value)}
+                            onBlur={() => handleExerciseInputBlur(i, 'rest_seconds', 0)}
                             className="w-full bg-surface-alt border border-border rounded px-2 py-1.5 text-[13px] text-text text-center focus:outline-none focus:border-accent"
                           />
                           <span className="text-[9px] text-text-secondary block text-center mt-0.5">seg</span>
