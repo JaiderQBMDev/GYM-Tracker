@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { ChevronLeft, Plus, GripVertical, Pencil, X } from 'lucide-react'
+import { ChevronLeft, Plus, GripVertical, Pencil } from 'lucide-react'
 import { useCreateRoutineWithExercises } from '../hooks/useApi'
 import { useRoutineBuilder } from '../stores/routineBuilder'
 import { useState } from 'react'

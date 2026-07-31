@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { Flame, Dumbbell, Settings, LogOut, Play, Moon } from 'lucide-react'
+import { Settings, LogOut, Play, Moon } from 'lucide-react'
 import { useProfile, useDashboard, useBodyMeasurements } from '../hooks/useApi'
 import { useAuthStore } from '../stores/auth'
 

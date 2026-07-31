@@ -36,7 +36,7 @@ export function AddExercisePage() {
   const [rest, setRest] = useState(90)
   const [customRest, setCustomRest] = useState('')
   const [showCustomRest, setShowCustomRest] = useState(false)
-  const [configError, setConfigError] = useState('')
+  const [, setConfigError] = useState('')
 
   const filtered = allExercises?.filter((e) => {
     const matchesSearch =
