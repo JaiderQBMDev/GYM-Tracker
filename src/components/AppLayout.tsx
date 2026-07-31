@@ -38,7 +38,7 @@ export function AppLayout() {
   }
 
   return (
-    <div className="flex-1 flex flex-col pb-16">
+    <div className="flex-1 flex flex-col pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
       <Outlet />
       <BottomNav />
     </div>
